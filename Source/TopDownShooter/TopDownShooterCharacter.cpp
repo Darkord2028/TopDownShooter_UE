@@ -10,18 +10,17 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "DrawDebugHelpers.h"
 
 //////////////////////////////////////////////////////////////////////////
 // ATopDownShooterCharacter
 
 ATopDownShooterCharacter::ATopDownShooterCharacter()
 {
+	PrimaryActorTick.bCanEverTick = true;
+
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
-
-	// set our turn rates for input
-	BaseTurnRate = 45.f;
-	BaseLookUpRate = 45.f;
 
 	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
@@ -66,16 +65,12 @@ void ATopDownShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	}
 
 	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ATopDownShooterCharacter::Move);
-	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ATopDownShooterCharacter::Jump);
-	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Canceled, this, &ATopDownShooterCharacter::StopJumping);
 
-	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
-	// "turn" handles devices that provide an absolute delta, such as a mouse.
-	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
-	//PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	//PlayerInputComponent->BindAxis("TurnRate", this, &ATopDownShooterCharacter::TurnAtRate);
-	//PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
-	//PlayerInputComponent->BindAxis("LookUpRate", this, &ATopDownShooterCharacter::LookUpAtRate);
+	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ATopDownShooterCharacter::Jump);
+	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ATopDownShooterCharacter::StopJumping);
+
+	EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &ATopDownShooterCharacter::Aim);
+	EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &ATopDownShooterCharacter::Aim);
 }
 
 
@@ -90,6 +85,10 @@ void ATopDownShooterCharacter::BeginPlay()
 		return;
 	}
 
+	PlayerController->bShowMouseCursor = true;
+	PlayerController->bEnableClickEvents = true;
+	PlayerController->bEnableMouseOverEvents = true;
+
 	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer());
 	if (Subsystem && DefaultMappingContext)
 	{
@@ -98,16 +97,10 @@ void ATopDownShooterCharacter::BeginPlay()
 
 }
 
-void ATopDownShooterCharacter::TurnAtRate(float Rate)
+void ATopDownShooterCharacter::Tick(float DeltaTime)
 {
-	// calculate delta for this frame from the rate information
-	AddControllerYawInput(Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds());
-}
-
-void ATopDownShooterCharacter::LookUpAtRate(float Rate)
-{
-	// calculate delta for this frame from the rate information
-	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+	DrawDebug();
+	HandleAim(DeltaTime);
 }
 
 void ATopDownShooterCharacter::Move(const FInputActionValue& Value)
@@ -129,4 +122,108 @@ void ATopDownShooterCharacter::Move(const FInputActionValue& Value)
 	// X = Forward/Backward, Y = Right/Left
 	AddMovementInput(ForwardDirection, MovementInput.X);
 	AddMovementInput(RightDirection, MovementInput.Y);
+}
+
+void ATopDownShooterCharacter::Aim(const FInputActionValue& Value)
+{
+	bIsAiming = Value.Get<bool>();
+	GetCharacterMovement()->bOrientRotationToMovement = !bIsAiming;
+}
+
+void ATopDownShooterCharacter::HandleAim(float DeltaTime)
+{
+	if (!bIsAiming) return;
+
+	FVector WorldOrigin, WorldDirection;
+	PlayerController->DeprojectMousePositionToWorld(WorldOrigin, WorldDirection);
+
+	float T = (GetActorLocation().Z - WorldOrigin.Z) / WorldDirection.Z;
+	FVector MouseWorldPosition = WorldOrigin + WorldDirection * T;
+
+	FVector ToMouse = MouseWorldPosition - GetActorLocation();
+	ToMouse.Z = 0.0f;
+	
+	if (ToMouse.IsNearlyZero()) return;
+
+	FRotator TargetRotation = ToMouse.Rotation();
+
+	SetActorRotation(FMath::RInterpTo(
+		GetActorRotation(),
+		TargetRotation,
+		DeltaTime,
+		12.0f
+	));
+
+	
+}
+
+void ATopDownShooterCharacter::DrawDebug()
+{
+	FVector FirePointLocation = GetMesh()->GetSocketLocation(TEXT("FirePoint"));
+	FRotator FirePointRotation = GetMesh()->GetSocketRotation(TEXT("FirePoint"));
+
+	FVector ActorDir = GetActorLocation() + GetActorForwardVector() * 400.0f;
+	FVector FirePointDir = FirePointLocation + FirePointRotation.Vector() * 400.f;
+	FVector FirePointForward =
+		GetMesh()->GetSocketTransform(TEXT("FirePoint"), RTS_World)
+		.GetUnitAxis(EAxis::X);
+
+	FVector WorldOrigin, WorldDirection;
+	PlayerController->DeprojectMousePositionToWorld(WorldOrigin, WorldDirection);
+
+	float T = (GetActorLocation().Z - WorldOrigin.Z) / WorldDirection.Z;
+	FVector MouseWorldPosition = WorldOrigin + WorldDirection * T;
+
+	DrawDebugLine(
+		GetWorld(),
+		FirePointLocation,
+		FirePointDir,
+		FColor::Red,
+		false,
+		0.f,
+		0,
+		2.f
+	);
+
+	DrawDebugLine(
+		GetWorld(),
+		GetActorLocation(),
+		ActorDir,
+		FColor::Yellow,
+		false,
+		0.f,
+		0,
+		2.f
+	);
+
+	DrawDebugLine(
+		GetWorld(),
+		FirePointLocation,
+		MouseWorldPosition,
+		FColor::Blue,
+		false,
+		0.f,
+		0,
+		2.f
+	);
+
+	FVector FireToCursor =
+		(MouseWorldPosition - FirePointLocation).GetSafeNormal();
+
+	float Dot =
+		FVector::DotProduct(FirePointForward, FireToCursor);
+
+	Dot = FMath::Clamp(Dot, -1.f, 1.f);
+
+	float AngleDegreeError =
+		FMath::RadiansToDegrees(FMath::Acos(Dot));
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("AimError = %.2f deg | Dot = %.3f"),
+		AngleDegreeError,
+		Dot
+	);
+
 }
