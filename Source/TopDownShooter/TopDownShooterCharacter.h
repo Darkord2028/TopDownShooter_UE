@@ -9,6 +9,7 @@
 
 class UInputMappingContext;
 class UInputAction;
+class UWeaponComponent;
 
 UCLASS(config=Game)
 class ATopDownShooterCharacter : public ACharacter
@@ -40,24 +41,36 @@ private:
 	UInputAction* MoveAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	UInputAction* JumpAction;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	UInputAction* AimAction;
 
-protected:
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	UInputAction* FireAction;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	UInputAction* ReloadAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FireMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ReloadMontage;
+
+	void PlayFireAnimation();
+
+protected:
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 
 	void Move(const FInputActionValue& Value);
 	void Aim(const FInputActionValue& Value);
 	void HandleAim(float DeltaTime);
+	void StartFire();
+	void StopFire();
+	void Reload();
 
-protected:
-	// APawn interface
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	// End of APawn interface
+	UPROPERTY(VisibleAnywhere)
+	UWeaponComponent* WeaponComponent;
 
 	void DrawDebug();
 

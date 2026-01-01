@@ -1,34 +1,63 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
+#include "Component/AmmoComponent.h"
+#include "Component/FireModeComponent.h"
+#include "Weapon/BaseWeapon.h"
 #include "Component/WeaponComponent.h"
 
-// Sets default values for this component's properties
 UWeaponComponent::UWeaponComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
 
-// Called when the game starts
+void UWeaponComponent::EquipWeapon()
+{
+}
+
+bool UWeaponComponent::TryFire()
+{
+	return PrimaryWeapon && PrimaryWeapon->TryFire();
+}
+
+void UWeaponComponent::StartFire()
+{
+	if (PrimaryWeapon)
+	{
+		PrimaryWeapon->StartFire();
+	}
+}
+
+void UWeaponComponent::StopFire()
+{
+	if (PrimaryWeapon)
+	{
+		PrimaryWeapon->StopFire();
+	}
+}
+
+void UWeaponComponent::Reload()
+{
+	if (PrimaryWeapon)
+	{
+		PrimaryWeapon->Reload();
+	}
+}
+
+float UWeaponComponent::GetPrimaryWeaponFireRate()
+{
+	return PrimaryWeapon->GetFireRate();
+}
+
 void UWeaponComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ...
+	PrimaryWeapon = GetWorld()->SpawnActor<ABaseWeapon>(DefaultWeaponClass);
+	PrimaryWeapon->SetOwner(GetOwner());
 	
 }
 
-
-// Called every frame
 void UWeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	// ...
 }
 

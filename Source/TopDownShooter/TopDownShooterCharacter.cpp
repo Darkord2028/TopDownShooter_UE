@@ -10,6 +10,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Component/WeaponComponent.h"
 #include "DrawDebugHelpers.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -44,8 +45,7 @@ ATopDownShooterCharacter::ATopDownShooterCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
+	WeaponComponent = CreateDefaultSubobject<UWeaponComponent>(TEXT("Weapon Component"));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -66,11 +66,13 @@ void ATopDownShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 
 	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ATopDownShooterCharacter::Move);
 
-	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ATopDownShooterCharacter::Jump);
-	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ATopDownShooterCharacter::StopJumping);
-
 	EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &ATopDownShooterCharacter::Aim);
 	EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &ATopDownShooterCharacter::Aim);
+
+	EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ATopDownShooterCharacter::StartFire);
+	EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ATopDownShooterCharacter::StopFire);
+
+	EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Triggered, this, &ATopDownShooterCharacter::Reload);
 }
 
 
@@ -99,7 +101,7 @@ void ATopDownShooterCharacter::BeginPlay()
 
 void ATopDownShooterCharacter::Tick(float DeltaTime)
 {
-	DrawDebug();
+	//DrawDebug();
 	HandleAim(DeltaTime);
 }
 
@@ -155,6 +157,59 @@ void ATopDownShooterCharacter::HandleAim(float DeltaTime)
 	));
 
 	
+}
+
+void ATopDownShooterCharacter::StartFire()
+{
+	if (WeaponComponent && bIsAiming)
+	{
+
+		const bool bShotFired = WeaponComponent->TryFire();
+
+		if (bShotFired)
+		{
+			PlayFireAnimation();
+		}
+	}
+}
+
+void ATopDownShooterCharacter::StopFire()
+{
+	if (WeaponComponent)
+	{
+		WeaponComponent->StopFire();
+	}
+}
+
+void ATopDownShooterCharacter::PlayFireAnimation()
+{
+	if (!FireMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Fire Montage is missing!"));
+		return;
+	}
+
+	float FireRate = WeaponComponent->GetPrimaryWeaponFireRate();
+	if (!FireRate) UE_LOG(LogTemp, Warning, TEXT("Fire Rate is null"));
+	if (FireRate <= 0.f) return;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (!AnimInstance) return;
+
+	float MontageLength = FireMontage->GetPlayLength();
+	float PlayRate = MontageLength / FireRate;
+
+	//PlayRate = FMath::Clamp(PlayRate, 0.5f, 0.3f);
+	AnimInstance->Montage_Play(FireMontage, PlayRate);
+
+}
+
+void ATopDownShooterCharacter::Reload()
+{
+	if (WeaponComponent)
+	{
+		WeaponComponent->Reload();
+	}
 }
 
 void ATopDownShooterCharacter::DrawDebug()

@@ -2,37 +2,27 @@
 
 
 #include "Weapon/BaseWeapon.h"
+#include "Component/FireModeComponent.h"
+#include "Component/FireModeComponent/FireMode_Hitscan.h"
+#include "Component/AmmoComponent.h"
 
 // Sets default values
 ABaseWeapon::ABaseWeapon()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	MagCapacity = 30;
-	MaxReserveAmmo = 120;
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SetRootComponent(Root);
 
-	CurrentMagAmmo = MagCapacity;
-	CurrentReserveAmmo = MaxReserveAmmo;
-
-	bCanFire = true;
-	bIsReloading = false;
-
+	Ammo = CreateDefaultSubobject<UAmmoComponent>(TEXT("Ammo Component"));
 }
 
 // Called when the game starts or when spawned
 void ABaseWeapon::BeginPlay()
 {
 	Super::BeginPlay();
-}
 
-void ABaseWeapon::ConsumeAmmo()
-{
-	CurrentMagAmmo = FMath::Clamp(CurrentMagAmmo - 1, 0, MagCapacity);
-}
-
-void ABaseWeapon::OnFireCooldownComplete()
-{
-	bCanFire = true;
+	FireMode = FindComponentByClass<UFireModeComponent>();
 }
 
 // Called every frame
@@ -41,32 +31,59 @@ void ABaseWeapon::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void ABaseWeapon::WeaponShoot()
+bool ABaseWeapon::TryFire()
 {
-	if (!bCanFire)
+	if (!Ammo || !Ammo->CanFire() || !FireMode)
 	{
-		if (CurrentMagAmmo <= 0)
-		{
-			Reload();
-		}
+		return false;
+	}
+
+	StartFire();
+	return true;
+}
+
+void ABaseWeapon::StartFire()
+{
+	if (bIsFiring) return;
+
+	bIsFiring = true;
+
+	HandleFire();
+
+	GetWorld()->GetTimerManager().SetTimer(
+		FireTimerHandle,
+		this,
+		&ABaseWeapon::HandleFire,
+		FireRate,
+		true
+	);
+}
+
+void ABaseWeapon::HandleFire()
+{
+	if (!Ammo || !Ammo->CanFire() || !FireMode)
+	{
+		StopFire();
 		return;
 	}
 
-	ConsumeAmmo();
-	
-	bCanFire = false;
+	FireMode->Fire();
+	Ammo->ConsumeAmmo();
+}
 
-	GetWorld()->GetTimerManager().SetTimer(
-		FireRateTimerHandle,
-		this,
-		&ABaseWeapon::OnFireCooldownComplete,
-		FireRate,
-		false
-	);
-
+void ABaseWeapon::StopFire()
+{
+	bIsFiring = false;
+	GetWorld()->GetTimerManager().ClearTimer(FireTimerHandle);
 }
 
 void ABaseWeapon::Reload()
 {
+	Ammo->Reload();
+}
+
+int32 ABaseWeapon::GetCurrentMagAmmo() const
+{
+	return Ammo->GetCurrentMagAmmo();
 }
 

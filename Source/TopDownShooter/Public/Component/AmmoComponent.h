@@ -7,7 +7,7 @@
 #include "AmmoComponent.generated.h"
 
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS( ClassGroup=(Weapon), meta=(BlueprintSpawnableComponent) )
 class TOPDOWNSHOOTER_API UAmmoComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -21,8 +21,23 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	bool CanFire() const;
+	void ConsumeAmmo();
+	void Reload();
 
-		
+	int32 GetCurrentMagAmmo() const { return CurrentMagAmmo; }
+
+private:
+	UPROPERTY(VisibleAnywhere)
+	int32 CurrentMagAmmo;
+
+	UPROPERTY(EditDefaultsOnly)
+	int32 MaxMagAmmo = 30;
+
+	UPROPERTY(VisibleAnywhere)
+	int32 CurrentReserveAmmo;
+
+	UPROPERTY(EditDefaultsOnly)
+	int32 MaxReserveAmmo = 120;
+
 };

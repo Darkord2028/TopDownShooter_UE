@@ -7,6 +7,9 @@
 #include "TimerManager.h"
 #include "BaseWeapon.generated.h"
 
+class UAmmoComponent;
+class UFireModeComponent;
+
 UCLASS(Abstract)
 class TOPDOWNSHOOTER_API ABaseWeapon : public AActor
 {
@@ -15,23 +18,8 @@ class TOPDOWNSHOOTER_API ABaseWeapon : public AActor
 public:	
 	ABaseWeapon();
 
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	virtual void WeaponShoot();
-
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	virtual void Reload();
-
-	UFUNCTION(BlueprintCallable, Category = "Weapon|Ammunition")
-	int32 GetCurrentMagCapacity() const { return MagCapacity; }
-
-	UFUNCTION(BlueprintCallable, Category = "Weapon|Ammunition")
-	int32 GetCurrentMagAmmo() const { return CurrentMagAmmo; }
-
-	UFUNCTION(BlueprintCallable, Category = "Weapon|Ammunition")
-	int32 GetMaxReserveAmmo() const { return MaxReserveAmmo; }
-
-	UFUNCTION(BlueprintCallable, Category = "Weapon|Ammunition")
-	int32 GetCurrentReserveAmmo() const { return CurrentReserveAmmo; }
+	float GetFireRate() const { return FireRate; }
+	int32 GetCurrentMagAmmo() const;
 
 protected:
 	// Called when the game starts or when spawned
@@ -40,32 +28,34 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	float FireRate;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Ammunition")
-	int32 MagCapacity = 30;
-
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon|Ammunition")
-	int32 CurrentMagAmmo;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon|Ammunition")
-	int32 MaxReserveAmmo = 120;
-
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon|Ammunition")
-	int32 CurrentReserveAmmo;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	float Damage;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon|State")
-	bool bCanFire;
+	bool bIsAutomatic;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Weapon|State")
-	bool bIsReloading;
+	bool bIsFiring = false;
 
-	void ConsumeAmmo();
+	UPROPERTY(VisibleAnywhere)
+	USceneComponent* Root;
 
-	void OnFireCooldownComplete();
+	UPROPERTY(VisibleAnywhere)
+	UAmmoComponent* Ammo;
 
-	FTimerHandle FireRateTimerHandle;
+	UPROPERTY(VisibleAnywhere)
+	UFireModeComponent* FireMode;
+
+	FTimerHandle FireTimerHandle;
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	bool TryFire();
+	void StartFire();
+	void StopFire();
+	void Reload();
+
+private:
+	void HandleFire();
 
 };

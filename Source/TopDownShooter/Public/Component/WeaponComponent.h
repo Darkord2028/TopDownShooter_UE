@@ -6,8 +6,13 @@
 #include "Components/ActorComponent.h"
 #include "WeaponComponent.generated.h"
 
+class ABaseWeapon;
+class UAmmoComponent;
+class UFireModeComponent;
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+class ABaseWeapon;
+
+UCLASS( ClassGroup=(Combat), meta=(BlueprintSpawnableComponent) )
 class TOPDOWNSHOOTER_API UWeaponComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -20,9 +25,20 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<ABaseWeapon> DefaultWeaponClass;
+
+	ABaseWeapon* PrimaryWeapon;
+
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	void EquipWeapon();
+	bool TryFire();
+	void StartFire();
+	void StopFire();
+	void Reload();
 
-		
+	ABaseWeapon* GetPrimaryWeapon() const { return PrimaryWeapon; }
+	float GetPrimaryWeaponFireRate();
 };
